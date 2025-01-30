@@ -41,14 +41,16 @@
             margin-bottom: 1rem;
         }
 
-        textarea {
+        .weekly-summary {
+            margin-bottom: 2rem;
+        }
+
+        textarea, input {
             width: 100%;
-            min-height: 120px;
             padding: 0.75rem;
             border: 1px solid var(--secondary);
             border-radius: 0.5rem;
             margin: 1rem 0;
-            resize: vertical;
         }
 
         .mood-select {
@@ -69,7 +71,7 @@
             transform: scale(1.2);
         }
 
-        button {
+        button {}
             background: var(--primary);
             color: white;
             border: none;
@@ -84,25 +86,6 @@
         button:hover {
             background: #7C3AED;
         }
-
-        .journal-entry {
-            margin: 1rem 0;
-            padding: 1rem;
-            background: white;
-            border-radius: 0.5rem;
-            border-left: 4px solid var(--primary);
-        }
-
-        .weekly-summary {
-            margin-top: 2rem;
-        }
-
-        .recommendation {
-            background: #EDE9FE;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin-top: 1rem;
-        }
     </style>
 </head>
 <body>
@@ -110,8 +93,11 @@
         <h1>📝 Mood Journal</h1>
     </div>
 
+    <div class="weekly-summary card" id="weeklySummary"></div>
+
     <div class="card">
         <h2>Catatan Hari Ini</h2>
+        <input type="date" id="entryDate" value="">
         <textarea id="journalEntry" placeholder="Bagaimana perasaanmu hari ini?"></textarea>
         <div class="mood-select">
             <span class="mood-option" data-value="1">😢</span>
@@ -124,8 +110,6 @@
     </div>
 
     <div id="entriesList"></div>
-
-    <div class="weekly-summary card" id="weeklySummary"></div>
 
     <script>
         let selectedMood = 3;
@@ -141,38 +125,27 @@
 
         function saveEntry() {
             const text = document.getElementById('journalEntry').value;
+            const date = document.getElementById('entryDate').value || new Date().toISOString().split('T')[0];
             if (!text) return;
 
-            const entry = {
-                date: new Date().toISOString(),
-                text: text,
-                mood: selectedMood
-            };
-
+            const entry = { date, text, mood: selectedMood };
             entries.unshift(entry);
             localStorage.setItem('journalEntries', JSON.stringify(entries));
-            
             document.getElementById('journalEntry').value = '';
             document.querySelectorAll('.mood-option').forEach(opt => opt.classList.remove('selected'));
-            
             updateDisplay();
         }
 
         function updateDisplay() {
-            // Display entries
             const entriesHtml = entries.map(entry => `
-                <div class="journal-entry">
+                <div class="card">
                     <div>${new Date(entry.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     <div>${entry.text}</div>
-                    <div style="font-size: 1.5rem; margin-top: 0.5rem;">
-                        ${getMoodEmoji(entry.mood)}
-                    </div>
+                    <div style="font-size: 1.5rem; margin-top: 0.5rem;">${getMoodEmoji(entry.mood)}</div>
                 </div>
             `).join('');
-            
             document.getElementById('entriesList').innerHTML = entriesHtml;
 
-            // Calculate weekly summary
             if (entries.length > 0) {
                 const weeklyEntries = entries.filter(entry => {
                     const entryDate = new Date(entry.date);
@@ -184,11 +157,10 @@
                 if (weeklyEntries.length > 0) {
                     const avgMood = weeklyEntries.reduce((sum, entry) => sum + entry.mood, 0) / weeklyEntries.length;
                     const recommendation = getRecommendation(avgMood);
-
                     document.getElementById('weeklySummary').innerHTML = `
                         <h2>Ringkasan Minggu Ini</h2>
                         <p>Rata-rata mood: ${getMoodEmoji(Math.round(avgMood))} (${avgMood.toFixed(1)})</p>
-                        <div class="recommendation">
+                        <div class="card">
                             <h3>Rekomendasi:</h3>
                             <p>${recommendation}</p>
                         </div>
@@ -203,18 +175,13 @@
         }
 
         function getRecommendation(avgMood) {
-            if (avgMood >= 4) {
-                return "Mood-mu sangat baik! Terus pertahankan kebiasaan positif yang kamu lakukan. Berbagi kebahagiaan dengan orang lain bisa membuatmu merasa lebih baik lagi.";
-            } else if (avgMood >= 3) {
-                return "Mood-mu cukup stabil. Cobalah aktivitas yang kamu sukai untuk meningkatkan mood, seperti olahraga ringan atau meditasi.";
-            } else if (avgMood >= 2) {
-                return "Sepertinya ada beberapa hal yang mengganggu pikiranmu. Cobalah berbicara dengan teman atau keluarga, dan jangan lupa istirahat yang cukup.";
-            } else {
-                return "Mood-mu sedang kurang baik. Pertimbangkan untuk berbicara dengan profesional kesehatan mental. Ingat, tidak apa-apa untuk meminta bantuan.";
-            }
+            if (avgMood >= 4) return "Mood-mu sangat baik! Terus pertahankan kebiasaan positif.";
+            if (avgMood >= 3) return "Mood-mu cukup stabil. Coba lakukan aktivitas menyenangkan.";
+            if (avgMood >= 2) return "Coba berbicara dengan teman atau keluarga untuk merasa lebih baik.";
+            return "Mood-mu sedang rendah. Pertimbangkan untuk berbicara dengan profesional kesehatan mental.";
         }
 
-        // Initial display
+        document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
         updateDisplay();
     </script>
 </body>
