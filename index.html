@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Journal</title>
+    <style>
+        :root {
+            --primary: #8B5CF6;
+            --secondary: #C4B5FD;
+            --background: #F3F4F6;
+            --text: #1F2937;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text);
+            padding: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--primary);
+        }
+
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1rem;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 0.75rem;
+            border: 1px solid var(--secondary);
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            resize: vertical;
+        }
+
+        .mood-select {
+            display: flex;
+            justify-content: space-between;
+            margin: 1rem 0;
+        }
+
+        .mood-option {
+            font-size: 2rem;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: 0.3s;
+        }
+
+        .mood-option.selected {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #7C3AED;
+        }
+
+        .journal-entry {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: white;
+            border-radius: 0.5rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        .weekly-summary {
+            margin-top: 2rem;
+        }
+
+        .recommendation {
+            background: #EDE9FE;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📝 Mood Journal</h1>
+    </div>
+
+    <div class="card">
+        <h2>Catatan Hari Ini</h2>
+        <textarea id="journalEntry" placeholder="Bagaimana perasaanmu hari ini?"></textarea>
+        <div class="mood-select">
+            <span class="mood-option" data-value="1">😢</span>
+            <span class="mood-option" data-value="2">😔</span>
+            <span class="mood-option" data-value="3">😐</span>
+            <span class="mood-option" data-value="4">😊</span>
+            <span class="mood-option" data-value="5">😄</span>
+        </div>
+        <button onclick="saveEntry()">Simpan Catatan</button>
+    </div>
+
+    <div id="entriesList"></div>
+
+    <div class="weekly-summary card" id="weeklySummary"></div>
+
+    <script>
+        let selectedMood = 3;
+        let entries = JSON.parse(localStorage.getItem('journalEntries')) || [];
+
+        document.querySelectorAll('.mood-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.mood-option').forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedMood = parseInt(option.dataset.value);
+            });
+        });
+
+        function saveEntry() {
+            const text = document.getElementById('journalEntry').value;
+            if (!text) return;
+
+            const entry = {
+                date: new Date().toISOString(),
+                text: text,
+                mood: selectedMood
+            };
+
+            entries.unshift(entry);
+            localStorage.setItem('journalEntries', JSON.stringify(entries));
+            
+            document.getElementById('journalEntry').value = '';
+            document.querySelectorAll('.mood-option').forEach(opt => opt.classList.remove('selected'));
+            
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            // Display entries
+            const entriesHtml = entries.map(entry => `
+                <div class="journal-entry">
+                    <div>${new Date(entry.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                    <div>${entry.text}</div>
+                    <div style="font-size: 1.5rem; margin-top: 0.5rem;">
+                        ${getMoodEmoji(entry.mood)}
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('entriesList').innerHTML = entriesHtml;
+
+            // Calculate weekly summary
+            if (entries.length > 0) {
+                const weeklyEntries = entries.filter(entry => {
+                    const entryDate = new Date(entry.date);
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    return entryDate >= weekAgo;
+                });
+
+                if (weeklyEntries.length > 0) {
+                    const avgMood = weeklyEntries.reduce((sum, entry) => sum + entry.mood, 0) / weeklyEntries.length;
+                    const recommendation = getRecommendation(avgMood);
+
+                    document.getElementById('weeklySummary').innerHTML = `
+                        <h2>Ringkasan Minggu Ini</h2>
+                        <p>Rata-rata mood: ${getMoodEmoji(Math.round(avgMood))} (${avgMood.toFixed(1)})</p>
+                        <div class="recommendation">
+                            <h3>Rekomendasi:</h3>
+                            <p>${recommendation}</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function getMoodEmoji(mood) {
+            const emojis = ['😢', '😔', '😐', '😊', '😄'];
+            return emojis[mood - 1];
+        }
+
+        function getRecommendation(avgMood) {
+            if (avgMood >= 4) {
+                return "Mood-mu sangat baik! Terus pertahankan kebiasaan positif yang kamu lakukan. Berbagi kebahagiaan dengan orang lain bisa membuatmu merasa lebih baik lagi.";
+            } else if (avgMood >= 3) {
+                return "Mood-mu cukup stabil. Cobalah aktivitas yang kamu sukai untuk meningkatkan mood, seperti olahraga ringan atau meditasi.";
+            } else if (avgMood >= 2) {
+                return "Sepertinya ada beberapa hal yang mengganggu pikiranmu. Cobalah berbicara dengan teman atau keluarga, dan jangan lupa istirahat yang cukup.";
+            } else {
+                return "Mood-mu sedang kurang baik. Pertimbangkan untuk berbicara dengan profesional kesehatan mental. Ingat, tidak apa-apa untuk meminta bantuan.";
+            }
+        }
+
+        // Initial display
+        updateDisplay();
+    </script>
+</body>
+</html>
